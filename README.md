@@ -10,7 +10,7 @@
 > **Đề tài Thực tập Tốt nghiệp (Ngành Công nghệ Phần mềm — Khoa CNTT, HUFLIT)**  
 > **Đơn vị thực tập:** Công ty TNHH S-NEXT (Mã số thuế: `0313778856`)  
 > **Địa chỉ:** 266/78/47 Tô Hiến Thành, Phường Hòa Hưng, TP. Hồ Chí Minh  
-> **Lĩnh vực:** Phân phối Thủy hải sản đông lạnh nhập khẩu & Đặc sản đóng gói chuẩn chuỗi lạnh IQF `-18°C`
+> **Mô hình sản phẩm:** **S-NEXT Seafood** là sản phẩm nền tảng thương mại điện tử ngành hàng thủy hải sản do Công ty TNHH S-NEXT (đơn vị thương mại, phân phối, bán lẻ và sản xuất các sản phẩm thương mại) xây dựng và phân phối cho đối tác kinh doanh hải sản.
 
 ---
 
