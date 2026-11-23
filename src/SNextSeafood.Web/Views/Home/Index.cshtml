@@ -1,0 +1,196 @@
+﻿@model SNextSeafood.Web.Models.CatalogIndexViewModel
+@{
+    ViewData["Title"] = "Trang Chủ & Danh Mục Thủy Hải Sản Cấp Đông";
+    var now = DateTime.UtcNow;
+}
+
+<!-- Hero Banner S-NEXT Seafood -->
+<div class="hero-seafood p-4 p-lg-5 mb-4">
+    <div class="row align-items-center g-4">
+        <div class="col-lg-8">
+            <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-info bg-opacity-25 text-info small fw-semibold mb-3">
+                <i class="bi bi-snow2"></i> Chuỗi Cung Ứng Lạnh Tiêu Chuẩn IQF -18°C &bull; Minh Bạch Nguồn Gốc Từng Lô Hàng
+            </div>
+            <h1 class="display-6 fw-bold mb-3">
+                Thủy Hải Sản Đông Lạnh &amp; Đặc Sản Đóng Gói <span style="color:#ff6b35;">S-NEXT</span>
+            </h1>
+            <p class="lead text-white-50 mb-4" style="font-size: 1.02rem;">
+                Cam kết thủy hải sản tươi ngon chuẩn chuỗi lạnh <strong>IQF -18°C</strong>, kiểm soát chặt chẽ hạn sử dụng từng lô hàng, hiển thị tồn kho khả dụng theo thời gian thực và thanh toán thuận tiện qua <strong>Chuyển khoản QR / VNPay / Ví MoMo / COD Nội thành TP.HCM</strong>.
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="#catalog-section" class="btn btn-coral btn-lg rounded-pill px-4">
+                    <i class="bi bi-bag-check me-1"></i>Đặt Mua Hải Sản Ngay
+                </a>
+                <a href="/Order/Track" class="btn btn-outline-light btn-lg rounded-pill px-4">
+                    <i class="bi bi-search me-1"></i>Tra Cứu Đơn Hàng Của Tôi
+                </a>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="p-3 rounded-4 bg-white bg-opacity-10 border border-info border-opacity-25">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="badge bg-warning text-dark"><i class="bi bi-ticket-perforated-fill me-1"></i>Voucher Khuyến Mãi &amp; Xả Kho</span>
+                    <span class="small text-info">Đang hoạt động</span>
+                </div>
+                @foreach (var v in Model.ActiveVouchers)
+                {
+                    <div class="p-2 rounded-3 bg-dark bg-opacity-50 mb-2 border border-secondary border-opacity-25">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <code class="text-warning fw-bold fs-6">@v.Code</code>
+                            <span class="badge @(v.IsClearanceVoucher ? "bg-danger" : "bg-info text-dark")">Giảm @v.DiscountPercent%</span>
+                        </div>
+                        <div class="small text-white-50 mt-1">@v.Description</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Filter & Search Bar -->
+<div id="catalog-section" class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <div class="row g-3 align-items-center">
+        <div class="col-lg-7">
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-action="Index"
+                   class="btn @(Model.SelectedCategoryId == null ? "btn-ocean" : "btn-outline-secondary") rounded-pill btn-sm px-3">
+                    <i class="bi bi-grid-fill me-1"></i>Tất Cả Sản Phẩm (@Model.Products.Count)
+                </a>
+                @foreach (var cat in Model.Categories)
+                {
+                    <a asp-action="Index" asp-route-categoryId="@cat.CategoryId"
+                       class="btn @(Model.SelectedCategoryId == cat.CategoryId ? "btn-ocean" : "btn-outline-secondary") rounded-pill btn-sm px-3">
+                        <i class="bi @cat.IconClass me-1"></i>@cat.Name
+                    </a>
+                }
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <form method="get" asp-action="Index" class="d-flex gap-2">
+                @if (Model.SelectedCategoryId.HasValue)
+                {
+                    <input type="hidden" name="categoryId" value="@Model.SelectedCategoryId" />
+                }
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="search" value="@Model.SearchQuery" class="form-control border-start-0"
+                           placeholder="Tìm cá hồi Nauy, tôm sú IQF, cồi sò điệp, mã SKU..." />
+                    <button type="submit" class="btn btn-ocean px-3">Tìm Kiếm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Product Catalog Grid -->
+<div class="row g-4">
+    @foreach (var product in Model.Products)
+    {
+        var defaultVariant = product.Variants.OrderBy(v => v.WeightGrams).First();
+        var variant1Kg = product.Variants.OrderByDescending(v => v.WeightGrams).FirstOrDefault();
+
+        var eligibleBatches = defaultVariant.WarehouseBatches
+            .Where(b => b.ExpiryDate > now && (b.RemainingQuantity - b.ReservedQuantity) > 0)
+            .OrderBy(b => b.ExpiryDate)
+            .ThenBy(b => b.ImportDate)
+            .ToList();
+
+        var totalAvailable500g = eligibleBatches.Sum(b => Math.Max(0, b.RemainingQuantity - b.ReservedQuantity));
+        var currentFefoBatch = eligibleBatches.FirstOrDefault();
+
+        var totalAvailable1kg = variant1Kg?.WarehouseBatches
+            .Where(b => b.ExpiryDate > now && (b.RemainingQuantity - b.ReservedQuantity) > 0)
+            .Sum(b => Math.Max(0, b.RemainingQuantity - b.ReservedQuantity)) ?? 0;
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card card-product h-100 d-flex flex-column">
+                <div class="product-img-wrapper">
+                    <a asp-action="Details" asp-route-slug="@product.Slug">
+                        <img src="@product.ImageUrl" alt="@product.Name" />
+                    </a>
+                    <div class="position-absolute top-0 start-0 m-2 d-flex flex-column gap-1">
+                        <span class="badge-cold-chain">
+                            <i class="bi bi-thermometer-snow me-1"></i>@product.StorageCondition
+                        </span>
+                        <span class="badge bg-dark bg-opacity-75 text-white fw-normal" style="font-size: 0.72rem;">
+                            <i class="bi bi-shield-check text-info me-1"></i>@product.PackagingMethod
+                        </span>
+                    </div>
+                    @if (currentFefoBatch is not null && currentFefoBatch.DaysUntilExpiry <= 15)
+                    {
+                        <span class="position-absolute bottom-0 end-0 m-2 badge bg-warning text-dark shadow-sm">
+                            <i class="bi bi-clock-history me-1"></i>Lô Cận Date (@currentFefoBatch.DaysUntilExpiry ngày)
+                        </span>
+                    }
+                </div>
+
+                <div class="card-body d-flex flex-column p-3">
+                    <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
+                        <span><i class="bi bi-geo-alt me-1 text-primary"></i>@product.Origin</span>
+                        <code class="text-secondary">@defaultVariant.Sku</code>
+                    </div>
+
+                    <h6 class="fw-bold mb-1">
+                        <a asp-action="Details" asp-route-slug="@product.Slug" class="text-decoration-none text-dark">
+                            @product.Name
+                        </a>
+                    </h6>
+                    <p class="small text-muted mb-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                        @product.ShortDescription
+                    </p>
+
+                    <!-- FEFO Current Batch & Real-time Available Stock Box -->
+                    <div class="p-2 rounded-3 bg-light border mb-3 small">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-secondary">Tồn khả dụng (500g / 1kg):</span>
+                            <span class="fw-bold text-success">
+                                @totalAvailable500g gói / @totalAvailable1kg túi
+                            </span>
+                        </div>
+                        @if (currentFefoBatch is not null)
+                        {
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-secondary">Lô hàng hiện tại:</span>
+                                <span class="badge @(currentFefoBatch.DaysUntilExpiry <= 15 ? "badge-fefo-near" : "badge-fefo-active")">
+                                    @currentFefoBatch.BatchCode &bull; HSD: @currentFefoBatch.ExpiryDate.ToString("dd/MM/yyyy")
+                                </span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-danger fw-semibold">Tạm hết lô khả dụng</div>
+                        }
+                    </div>
+
+                    <!-- Variant Quick Selector & Add to Cart -->
+                    <div class="mt-auto">
+                        <form asp-controller="Cart" asp-action="Add" method="post">
+                            <div class="mb-2">
+                                <select name="variantId" class="form-select form-select-sm fw-semibold border-primary border-opacity-25">
+                                    @foreach (var v in product.Variants.OrderBy(x => x.WeightGrams))
+                                    {
+                                        var avail = v.WarehouseBatches
+                                            .Where(b => b.ExpiryDate > now && (b.RemainingQuantity - b.ReservedQuantity) > 0)
+                                            .Sum(b => Math.Max(0, b.RemainingQuantity - b.ReservedQuantity));
+                                        <option value="@v.VariantId">
+                                            @v.PackagingSpec - @v.Price.ToString("N0")đ (Khả dụng: @avail)
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <input type="hidden" name="quantity" value="1" />
+                            <div class="d-flex gap-2">
+                                <a asp-action="Details" asp-route-slug="@product.Slug" class="btn btn-outline-secondary btn-sm flex-shrink-0" title="Xem chi tiết sản phẩm">
+                                    <i class="bi bi-eye"></i> Chi Tiết
+                                </a>
+                                <button type="submit" class="btn btn-coral btn-sm flex-grow-1">
+                                    <i class="bi bi-cart-plus me-1"></i>Thêm Giỏ Hàng
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

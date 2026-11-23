@@ -1,0 +1,262 @@
+@model SNextSeafood.Web.Models.CartCheckoutViewModel
+@using SNextSeafood.Domain.Enums
+@{
+    ViewData["Title"] = "Giỏ Hàng Lạnh & Thanh Toán Đơn Hàng";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">
+            <i class="bi bi-cart-check text-primary me-2"></i>Giỏ Hàng &amp; Thanh Toán Trực Tuyến
+        </h3>
+        <p class="text-muted small mb-0">
+            Kiểm tra sản phẩm, áp dụng ưu đãi và chọn hình thức thanh toán phù hợp để nhận hàng lạnh tận nơi tại TP. Hồ Chí Minh.
+        </p>
+    </div>
+    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-secondary rounded-pill">
+        <i class="bi bi-arrow-left me-1"></i>Tiếp Tục Chọn Hải Sản
+    </a>
+</div>
+
+@if (Model.CartItems.Count == 0)
+{
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+        <div class="display-3 text-muted mb-3"><i class="bi bi-basket2"></i></div>
+        <h4 class="fw-bold">Giỏ hàng của bạn đang trống</h4>
+        <p class="text-muted mb-4">Hãy thêm Cá hồi Nauy, Tôm sú biển IQF hoặc Cồi sò điệp Nhật Bản tươi ngon để bắt đầu đặt hàng tại S-NEXT Seafood.</p>
+        <div>
+            <a asp-controller="Home" asp-action="Index" class="btn btn-coral btn-lg rounded-pill px-4">
+                <i class="bi bi-shop me-1"></i>Khám Phá Danh Mục Sản Phẩm
+            </a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        <!-- Left Column: Cart Items + FEFO Batch Allocation Preview + Voucher -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-box-seam text-primary me-2"></i>1. Danh Sách Sản Phẩm &amp; Thông Tin Lô Hàng
+                </h5>
+
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead class="table-light small text-uppercase">
+                            <tr>
+                                <th>Sản Phẩm &amp; Lô Hàng Dự Kiến</th>
+                                <th class="text-end">Đơn Giá</th>
+                                <th class="text-center" style="width: 135px;">Số Lượng</th>
+                                <th class="text-end">Thành Tiền</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.CartItems)
+                            {
+                                Model.FefoAllocationsByVariant.TryGetValue(item.VariantId, out var fefoSim);
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <img src="@item.ImageUrl" alt="@item.ProductName" class="rounded-3 object-fit-cover border" style="width: 64px; height: 64px;" />
+                                            <div>
+                                                <a asp-controller="Home" asp-action="Details" asp-route-slug="@item.Slug" class="fw-bold text-dark text-decoration-none">
+                                                    @item.ProductName
+                                                </a>
+                                                <div class="small text-muted">
+                                                    Quy cách: <strong>@item.PackagingSpec</strong> | SKU: <code>@item.Sku</code>
+                                                </div>
+                                                <span class="badge bg-info bg-opacity-10 text-dark border mt-1">
+                                                    <i class="bi bi-snow2 text-primary me-1"></i>@item.StorageCondition
+                                                </span>
+
+                                                @if (fefoSim is not null && fefoSim.Allocations.Count > 0)
+                                                {
+                                                    <div class="mt-2 p-2 rounded-3 bg-light border small">
+                                                        <div class="fw-semibold text-primary mb-1">
+                                                            <i class="bi bi-patch-check-fill me-1"></i>Lô hàng dự kiến xuất giao:
+                                                        </div>
+                                                        @foreach (var alloc in fefoSim.Allocations)
+                                                        {
+                                                            <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                                                                <span class="badge @(alloc.IsNearExpiry ? "badge-fefo-near" : "badge-fefo-active")">
+                                                                    Lô @alloc.BatchCode: Lấy @alloc.AllocatedQuantity gói
+                                                                </span>
+                                                                <span class="text-muted" style="font-size: 0.75rem;">
+                                                                    (HSD: @alloc.ExpiryDate.ToString("dd/MM/yyyy") - Còn @alloc.DaysUntilExpiry ngày)
+                                                                </span>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end fw-semibold">@item.UnitPrice.ToString("N0")đ</td>
+                                    <td>
+                                        <form asp-action="UpdateQuantity" method="post" class="d-flex gap-1">
+                                            <input type="hidden" name="variantId" value="@item.VariantId" />
+                                            <input type="number" name="quantity" value="@item.Quantity" min="1" max="@item.AvailableStock"
+                                                   class="form-control form-control-sm text-center fw-bold" onchange="this.form.submit()" />
+                                        </form>
+                                        <div class="text-center text-muted" style="font-size: 0.72rem;">Kho còn: @item.AvailableStock</div>
+                                    </td>
+                                    <td class="text-end fw-bold text-danger">@item.LineTotal.ToString("N0")đ</td>
+                                    <td class="text-end">
+                                        <form asp-action="Remove" method="post">
+                                            <input type="hidden" name="variantId" value="@item.VariantId" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Xóa">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Voucher Section -->
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h6 class="fw-bold mb-2">
+                    <i class="bi bi-ticket-perforated text-warning me-2"></i>2. Áp Dụng Mã Giảm Giá / Voucher Xả Hàng Cận Date
+                </h6>
+                <form asp-action="ApplyVoucher" method="post" class="d-flex gap-2 mb-3">
+                    <input type="text" name="voucherCode" value="@Model.AppliedVoucherCode" class="form-control"
+                           placeholder="Nhập mã Voucher (VD: SNEXT50, XAHANG25, VIPSEAFOOD)" />
+                    <button type="submit" class="btn btn-ocean px-4 flex-shrink-0">Áp Dụng</button>
+                </form>
+
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var v in Model.AvailableVouchers)
+                    {
+                        <form asp-action="ApplyVoucher" method="post" class="d-inline">
+                            <input type="hidden" name="voucherCode" value="@v.Code" />
+                            <button type="submit" class="btn btn-sm @(Model.AppliedVoucherCode == v.Code ? "btn-warning fw-bold" : "btn-outline-secondary") rounded-pill">
+                                <i class="bi bi-tag-fill me-1"></i><strong>@v.Code</strong> (-@v.DiscountPercent%, tối đa @v.MaxDiscountAmount.ToString("N0")đ)
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Customer Info, Payment Strategy Selector & Order Summary -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h5 class="fw-bold mb-3">
+                    <i class="bi bi-shield-lock-fill text-success me-2"></i>3. Thông Tin Giao Hàng Lạnh &amp; Cổng Thanh Toán
+                </h5>
+
+                <form asp-action="PlaceOrder" method="post">
+                    <input type="hidden" name="VoucherCode" value="@Model.AppliedVoucherCode" />
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Họ và tên người nhận *</label>
+                            <input type="text" name="CustomerName" value="@Model.CheckoutInput.CustomerName" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Số điện thoại *</label>
+                            <input type="text" name="CustomerPhone" value="@Model.CheckoutInput.CustomerPhone" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Email nhận Hóa đơn điện tử &amp; Mã truy xuất lô</label>
+                            <input type="email" name="CustomerEmail" value="@Model.CheckoutInput.CustomerEmail" class="form-control" />
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-semibold">Quận / Khu vực TP.HCM</label>
+                            <input type="text" name="District" value="@Model.CheckoutInput.District" class="form-control" required />
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label small fw-semibold">Địa chỉ nhận hàng *</label>
+                            <input type="text" name="ShippingAddress" value="@Model.CheckoutInput.ShippingAddress" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">Ghi chú bảo quản / giao hàng</label>
+                            <input type="text" name="DeliveryNote" value="@Model.CheckoutInput.DeliveryNote" class="form-control" />
+                        </div>
+                    </div>
+
+                    <!-- Payment Method Radio Cards -->
+                    <label class="form-label small fw-bold text-uppercase text-secondary mb-2">
+                        Chọn phương thức thanh toán:
+                    </label>
+                    <div class="d-flex flex-column gap-2 mb-4">
+                        <label class="payment-option-card active d-flex align-items-start gap-3">
+                            <input type="radio" name="PaymentMethod" value="@PaymentMethodType.VNPay" class="form-check-input mt-1" checked />
+                            <div>
+                                <div class="fw-bold text-primary">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Chuyển Khoản Ngân Hàng / VNPay QR
+                                    <span class="badge bg-primary ms-1">Napas 24/7</span>
+                                </div>
+                                <div class="small text-muted">
+                                    Quét mã VietQR ngân hàng kèm nội dung chuyển khoản riêng theo từng đơn hàng để xác nhận nhanh chóng.
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="payment-option-card d-flex align-items-start gap-3">
+                            <input type="radio" name="PaymentMethod" value="@PaymentMethodType.MoMo" class="form-check-input mt-1" />
+                            <div>
+                                <div class="fw-bold" style="color: #a50064;">
+                                    <i class="bi bi-wallet2 me-1"></i>Ví Điện Tử MoMo / VietQR
+                                </div>
+                                <div class="small text-muted">
+                                    Quét mã QR Ví MoMo nhanh chóng, miễn phí giao dịch và nhận hóa đơn điện tử ngay lập tức.
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="payment-option-card d-flex align-items-start gap-3">
+                            <input type="radio" name="PaymentMethod" value="@PaymentMethodType.COD" class="form-check-input mt-1" />
+                            <div>
+                                <div class="fw-bold text-success">
+                                    <i class="bi bi-truck me-1"></i>COD Nội Thành TP.HCM (Xe Lạnh Chuyên Dụng)
+                                </div>
+                                <div class="small text-muted">
+                                    Nhận hàng kiểm tra nhiệt độ bảo quản -18°C rồi thanh toán tiền mặt/chuyển khoản tại chỗ.
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Order Totals Summary -->
+                    <div class="p-3 rounded-4 bg-light border mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Tạm tính (@Model.CartItems.Sum(i => i.Quantity) sản phẩm):</span>
+                            <span class="fw-semibold">@Model.Subtotal.ToString("N0") đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">
+                                Giảm giá Voucher
+                                @if (!string.IsNullOrWhiteSpace(Model.AppliedVoucherCode))
+                                {
+                                    <span class="badge bg-warning text-dark">@Model.AppliedVoucherCode</span>
+                                }
+                            </span>
+                            <span class="fw-semibold text-success">-@Model.DiscountAmount.ToString("N0") đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Phí giao xe lạnh bảo ôn:</span>
+                            <span class="fw-semibold">
+                                @(Model.ShippingFee == 0 ? "Miễn phí (Đơn >= 500k)" : $"{Model.ShippingFee:N0} đ")
+                            </span>
+                        </div>
+                        <hr class="my-2" />
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold fs-5">Tổng thanh toán:</span>
+                            <span class="fw-bold fs-4 text-danger">@Model.FinalAmount.ToString("N0") đ</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-coral btn-lg w-100 py-3 rounded-3 shadow">
+                        <i class="bi bi-lock-fill me-1"></i>Xác Nhận Đặt Hàng &amp; Tiến Hành Thanh Toán
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,197 @@
+@model SNextSeafood.Web.Models.PaymentGatewaySimulatorViewModel
+@{
+    ViewData["Title"] = $"{Model.GatewayName} - Đơn hàng {Model.Order.OrderCode}";
+    var headerGradient = Model.IsMoMo
+        ? "linear-gradient(135deg, #a50064 0%, #6d0042 100%)"
+        : "linear-gradient(135deg, #005baa 0%, #071e3d 100%)";
+    var accentBadge = Model.IsMoMo ? "bg-light text-danger" : "bg-warning text-dark";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden mb-4">
+            <!-- Header Thanh Toán Chuẩn Thương Mại -->
+            <div class="p-4 text-white" style="background: @headerGradient;">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div>
+                        <span class="badge @accentBadge mb-2 px-3 py-1 rounded-pill fw-semibold">
+                            <i class="bi bi-qr-code-scan me-1"></i>THANH TOÁN TRỰC TUYẾN AN TOÀN 24/7
+                        </span>
+                        <h3 class="fw-bold mb-1">@Model.GatewayName</h3>
+                        <p class="mb-0 text-white-50 small">
+                            Đơn vị bán hàng: <strong class="text-white">CÔNG TY TNHH S-NEXT</strong> (MST: 0313778856) &bull; Mã đơn hàng: <strong class="text-warning">@Model.Order.OrderCode</strong>
+                        </p>
+                    </div>
+                    <div class="text-md-end">
+                        <div class="small text-white-50">Số tiền cần thanh toán</div>
+                        <div class="display-6 fw-bold text-warning">@Model.AmountVnd.ToString("N0") đ</div>
+                        <div class="small text-white-50 mt-1">
+                            <i class="bi bi-clock-history me-1 text-info"></i>Giữ đơn hàng trong: <strong id="paymentCountdown" class="text-white">15:00</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-4 p-lg-5 bg-white">
+                <div class="row g-4 align-items-start">
+                    <!-- Cột Trái: Hình Ảnh Mã QR Thực Tế -->
+                    <div class="col-lg-5 text-center">
+                        <div class="p-3 rounded-4 border shadow-sm bg-light">
+                            <div class="fw-bold text-dark mb-2">
+                                <i class="bi bi-phone-vibrate text-primary me-1"></i>Quét mã QR bằng ứng dụng @(Model.IsMoMo ? "Ví MoMo / Ngân hàng" : "Ngân hàng / VNPay")
+                            </div>
+                            <div class="rounded-4 overflow-hidden border bg-white p-2 shadow-sm mx-auto" style="max-width: 310px;">
+                                <img src="@Model.QrImageUrl" alt="Mã QR thanh toán @Model.GatewayName" class="img-fluid rounded-3" />
+                            </div>
+                            <div class="small text-muted mt-3 text-start px-2">
+                                <div class="fw-semibold text-dark mb-1"><i class="bi bi-info-circle-fill text-primary me-1"></i>Hướng dẫn thanh toán nhanh:</div>
+                                <ol class="ps-3 mb-0">
+                                    <li>Mở ứng dụng @(Model.IsMoMo ? "Ví MoMo hoặc Mobile Banking" : "Ngân hàng hỗ trợ VietQR / VNPay") trên điện thoại.</li>
+                                    <li>Chọn tính năng <strong>Quét mã QR</strong> và quét mã bên trên.</li>
+                                    <li>Nhập chính xác <strong>Số tiền</strong> và <strong>Nội dung chuyển khoản</strong> bên phải để hệ thống tự động đối soát đơn hàng.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cột Phải: Thông Tin Chuyển Khoản Chi Tiết & Nút Xác Nhận -->
+                    <div class="col-lg-7">
+                        <!-- Bảng Thông Tin Chuyển Khoản -->
+                        <div class="p-4 rounded-4 border bg-light mb-4">
+                            <h5 class="fw-bold mb-3 text-dark">
+                                <i class="bi bi-bank2 text-primary me-2"></i>Thông Tin Chuyển Khoản Đối Soát Đơn Hàng
+                            </h5>
+
+                            <div class="row g-3 small">
+                                <div class="col-12">
+                                    <div class="p-3 rounded-3 bg-white border d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="text-muted">Đơn vị thụ hưởng / Kênh thanh toán</div>
+                                            <div class="fw-bold text-dark fs-6">@Model.BankOrWalletName</div>
+                                        </div>
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">Napas 24/7</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-6">
+                                    <div class="p-3 rounded-3 bg-white border h-100">
+                                        <div class="text-muted">Chủ tài khoản</div>
+                                        <div class="fw-bold text-dark fs-6">@Model.AccountHolder</div>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-6">
+                                    <div class="p-3 rounded-3 bg-white border h-100 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="text-muted">Số tài khoản / Ví</div>
+                                            <div class="fw-bold text-primary fs-6">@Model.AccountNumber</div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" onclick="copyText('0344460993', this)">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-6">
+                                    <div class="p-3 rounded-3 bg-white border border-danger border-opacity-50 h-100 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="text-muted">Số tiền chính xác</div>
+                                            <div class="fw-bold text-danger fs-5">@Model.AmountVnd.ToString("N0") đ</div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" onclick="copyText('@((long)Model.AmountVnd)', this)">
+                                            <i class="bi bi-clipboard me-1"></i>Chép
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="col-sm-6">
+                                    <div class="p-3 rounded-3 bg-warning bg-opacity-25 border border-warning h-100 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="text-dark fw-semibold">Nội dung chuyển khoản (Bắt buộc)</div>
+                                            <div class="fw-bold text-dark fs-5" style="letter-spacing: 0.03em;">@Model.TransferContent</div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-dark rounded-pill" onclick="copyText('@Model.TransferContent', this)">
+                                            <i class="bi bi-clipboard me-1"></i>Chép
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info border-0 rounded-3 mt-3 mb-0 py-2 small">
+                                <i class="bi bi-shield-check me-1"></i>
+                                Mỗi đơn hàng có <strong>mã nội dung chuyển khoản riêng biệt</strong> giúp Công ty TNHH S-NEXT xác nhận thanh toán và xuất kho lạnh giao hàng nhanh nhất.
+                            </div>
+                        </div>
+
+                        <!-- Tóm Tắt Sản Phẩm Trong Đơn -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-2 text-secondary small text-uppercase">
+                                <i class="bi bi-bag-check me-1 text-primary"></i>Chi Tiết Đơn Hàng @Model.Order.OrderCode
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle small mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Sản Phẩm</th>
+                                            <th class="text-center">SL</th>
+                                            <th class="text-end">Thành Tiền</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in Model.Order.OrderItems)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <span class="fw-semibold">@item.ProductVariant?.Product?.Name</span>
+                                                    <span class="text-muted">(@item.ProductVariant?.PackagingSpec)</span>
+                                                </td>
+                                                <td class="text-center fw-bold">@item.Quantity</td>
+                                                <td class="text-end fw-semibold">@item.LineTotal.ToString("N0") đ</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Nút Xác Nhận Hoàn Tất / Hủy Giao Dịch Tự Nhiên -->
+                        <div class="d-grid gap-2">
+                            <a href="@Model.SuccessCallbackUrl" class="btn btn-success btn-lg py-3 rounded-3 shadow-sm fw-bold">
+                                <i class="bi bi-check-circle-fill me-2"></i>Tôi Đã Chuyển Khoản — Xác Nhận Thanh Toán
+                            </a>
+                            <a href="@Model.CancelCallbackUrl" class="btn btn-outline-secondary py-2 rounded-3"
+                               onclick="return confirm('Bạn có chắc muốn hủy thanh toán cho đơn hàng @Model.Order.OrderCode không?');">
+                                <i class="bi bi-x-circle me-1"></i>Hủy Thanh Toán Đơn Hàng Này
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function copyText(text, btn) {
+            navigator.clipboard.writeText(text).then(function () {
+                const origHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check2"></i> Đã chép';
+                setTimeout(() => { btn.innerHTML = origHtml; }, 1800);
+            });
+        }
+
+        (function startCountdown() {
+            let seconds = 15 * 60;
+            const el = document.getElementById('paymentCountdown');
+            if (!el) return;
+            setInterval(function () {
+                if (seconds <= 0) return;
+                seconds--;
+                const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+                const s = String(seconds % 60).padStart(2, '0');
+                el.textContent = m + ':' + s;
+            }, 1000);
+        })();
+    </script>
+}

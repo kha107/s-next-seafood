@@ -1,0 +1,314 @@
+@model SNextSeafood.Web.Models.AdminDashboardViewModel
+@using System.Text.Json
+@using SNextSeafood.Domain.Enums
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Bảng Điều Khiển Doanh Thu & Quản Lý Kho Lạnh";
+
+    var revenueSeriesJson = JsonSerializer.Serialize(new[]
+    {
+        Model.Summary.VnPayRevenue,
+        Model.Summary.MoMoRevenue,
+        Model.Summary.CodRevenue
+    });
+
+    var healthyCount = Math.Max(0, Model.Summary.TotalActiveBatches - Model.Summary.NearExpiryBatchCount - Model.Summary.LowStockBatchCount);
+    var batchStatusSeriesJson = JsonSerializer.Serialize(new[]
+    {
+        healthyCount,
+        Model.Summary.NearExpiryBatchCount,
+        Model.Summary.LowStockBatchCount,
+        Model.Summary.ExpiredBatchCount
+    });
+}
+
+<!-- Top Header & Export Buttons -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="badge bg-warning text-dark mb-1">
+            <i class="bi bi-graph-up-arrow me-1"></i>BÁO CÁO QUẢN TRỊ &bull; CÔNG TY TNHH S-NEXT (MST: 0313778856)
+        </span>
+        <h3 class="fw-bold mb-0">Tổng Quan Doanh Thu &amp; Tình Hình Tồn Kho Lạnh</h3>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="/Admin/Dashboard/ExportInventoryExcel" class="btn btn-success rounded-pill px-3 shadow-sm">
+            <i class="bi bi-file-earmark-excel-fill me-1"></i>Xuất Báo Cáo Tồn Kho (.xlsx)
+        </a>
+        <a href="/Admin/Dashboard/ExportRevenueExcel" class="btn btn-primary rounded-pill px-3 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet-fill me-1"></i>Xuất Báo Cáo Doanh Thu (.xlsx)
+        </a>
+        <a href="/Admin/Warehouse" class="btn btn-outline-dark rounded-pill px-3">
+            <i class="bi bi-boxes me-1"></i>Quản Lý Kho Lô
+        </a>
+    </div>
+</div>
+
+<!-- 4 KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="kpi-card p-3 border-start border-4 border-success">
+            <div class="small text-muted text-uppercase fw-semibold">Tổng Doanh Thu Đã Thu</div>
+            <div class="fs-3 fw-bold text-success">@Model.Summary.TotalRevenuePaid.ToString("N0") đ</div>
+            <div class="small text-muted">
+                Tổng @Model.Summary.TotalOrdersCount đơn (@Model.Summary.PendingPaymentOrdersCount đơn đang chờ thanh toán)
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="kpi-card p-3 border-start border-4 border-primary">
+            <div class="small text-muted text-uppercase fw-semibold">Tổng Giá Trị Tồn Kho Lạnh</div>
+            <div class="fs-3 fw-bold text-primary">@Model.Summary.TotalInventoryCostValue.ToString("N0") đ</div>
+            <div class="small text-muted">
+                Khả dụng: <strong>@Model.Summary.TotalAvailableUnits</strong> gói | Đang giữ: <strong>@Model.Summary.TotalReservedUnits</strong> gói
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="kpi-card p-3 border-start border-4 border-warning">
+            <div class="small text-muted text-uppercase fw-semibold">Lô Hàng Cần Ưu Tiên Xử Lý</div>
+            <div class="fs-3 fw-bold text-warning-emphasis">@Model.Summary.NearExpiryBatchCount lô cận hạn</div>
+            <div class="small text-muted">
+                @Model.Summary.LowStockBatchCount lô sắp hết hàng (dưới định mức an toàn)
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="kpi-card p-3 border-start border-4 border-danger">
+            <div class="small text-muted text-uppercase fw-semibold">Tỷ Lệ Hao Hụt / Hết Hạn</div>
+            <div class="fs-3 fw-bold text-danger">@Model.Summary.SpoilageRatePercent%</div>
+            <div class="small text-muted">
+                Giá trị hao hụt: @Model.Summary.SpoilageCostValue.ToString("N0") đ
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="mb-3">
+                <h5 class="fw-bold mb-1">
+                    <i class="bi bi-bar-chart-fill text-primary me-2"></i>Biểu Đồ Doanh Thu Theo Phương Thức Thanh Toán
+                </h5>
+                <span class="small text-muted">Thống kê doanh thu thực thu từ VNPay / Chuyển khoản QR, Ví MoMo và Giao hàng thu tiền (COD)</span>
+            </div>
+            <div style="height: 290px;">
+                <canvas id="revenueByMethodChart"></canvas>
+            </div>
+            <div class="row text-center mt-3 pt-2 border-top small">
+                <div class="col-4">
+                    <div class="text-muted">VNPay / Chuyển khoản QR</div>
+                    <div class="fw-bold text-primary fs-6">@Model.Summary.VnPayRevenue.ToString("N0") đ</div>
+                </div>
+                <div class="col-4">
+                    <div class="text-muted">Ví MoMo / VietQR</div>
+                    <div class="fw-bold fs-6" style="color: #a50064;">@Model.Summary.MoMoRevenue.ToString("N0") đ</div>
+                </div>
+                <div class="col-4">
+                    <div class="text-muted">COD Nội Thành TP.HCM</div>
+                    <div class="fw-bold text-success fs-6">@Model.Summary.CodRevenue.ToString("N0") đ</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="mb-3">
+                <h5 class="fw-bold mb-1">
+                    <i class="bi bi-pie-chart-fill text-warning me-2"></i>Cơ Cấu Tình Trạng Lô Hàng Trong Kho
+                </h5>
+                <span class="small text-muted">Theo dõi hạn sử dụng và định mức tồn kho theo thời gian thực</span>
+            </div>
+            <div style="height: 290px;">
+                <canvas id="batchStatusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Orders Table -->
+<div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-receipt text-primary me-2"></i>Đơn Hàng Gần Đây &amp; Thông Tin Lô Xuất Kho
+            </h5>
+            <span class="small text-muted">Nhấn vào Mã đơn hàng để xem Hóa đơn điện tử và chi tiết nguồn gốc lô hàng</span>
+        </div>
+        <a href="/Admin/Orders" class="btn btn-outline-primary btn-sm rounded-pill px-3">
+            Xem Tất Cả Đơn Hàng <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle small mb-0">
+            <thead class="table-wms">
+                <tr>
+                    <th>Mã Đơn Hàng</th>
+                    <th>Khách Hàng &amp; Khu Vực</th>
+                    <th>Phương Thức</th>
+                    <th>Mã Lô Xuất Kho</th>
+                    <th class="text-end">Tổng Tiền</th>
+                    <th class="text-center">Thanh Toán</th>
+                    <th class="text-center">Trạng Thái Đơn</th>
+                    <th class="text-center">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in Model.RecentOrders)
+                {
+                    var methodVi = o.PaymentMethod == PaymentMethodType.VNPay ? "VNPay / QR"
+                                 : o.PaymentMethod == PaymentMethodType.MoMo ? "Ví MoMo" : "COD";
+                    var orderStatusVi = o.OrderStatus switch
+                    {
+                        OrderStatus.PendingPayment => "Chờ thanh toán",
+                        OrderStatus.Processing => "Đang chuẩn bị",
+                        OrderStatus.Shipping => "Đang giao hàng",
+                        OrderStatus.Completed => "Hoàn thành",
+                        OrderStatus.Cancelled => "Đã hủy",
+                        _ => "Đang xử lý"
+                    };
+
+                    <tr>
+                        <td>
+                            <a href="/Admin/Orders/Invoice/@o.OrderCode" class="fw-bold text-primary text-decoration-none">
+                                @o.OrderCode
+                            </a>
+                            <div class="text-muted" style="font-size: 0.72rem;">@o.CreatedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm")</div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">@o.CustomerName</div>
+                            <div class="text-muted">@o.CustomerPhone &bull; @o.District</div>
+                        </td>
+                        <td>
+                            <span class="badge @(o.PaymentMethod == PaymentMethodType.VNPay ? "bg-primary" : o.PaymentMethod == PaymentMethodType.MoMo ? "bg-danger" : "bg-success")">
+                                @methodVi
+                            </span>
+                        </td>
+                        <td>
+                            @foreach (var alloc in o.OrderItems.SelectMany(i => i.BatchAllocations))
+                            {
+                                <span class="badge bg-light text-dark border me-1 mb-1">
+                                    <strong>@alloc.BatchCode</strong> (@alloc.AllocatedQuantity gói - HSD: @alloc.ExpiryDate.ToString("dd/MM"))
+                                </span>
+                            }
+                        </td>
+                        <td class="text-end fw-bold text-danger">@o.FinalAmount.ToString("N0") đ</td>
+                        <td class="text-center">
+                            @switch (o.PaymentStatus)
+                            {
+                                case PaymentStatus.Paid:
+                                    <span class="badge bg-success">Đã thanh toán</span>
+                                    break;
+                                case PaymentStatus.Failed:
+                                    <span class="badge bg-danger">Chưa hoàn tất</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-warning text-dark">Chờ thanh toán</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-dark">@orderStatusVi</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="/Admin/Orders/Invoice/@o.OrderCode" class="btn btn-sm btn-outline-primary rounded-pill px-2">
+                                    <i class="bi bi-file-earmark-text"></i> Hóa đơn
+                                </a>
+                                @if (o.OrderStatus == OrderStatus.PendingPayment)
+                                {
+                                    var payUrl = o.PaymentMethod == PaymentMethodType.MoMo
+                                        ? $"/Payment/MoMoGateway?orderCode={o.OrderCode}&txnRef={o.OrderCode}-MOMO"
+                                        : $"/Payment/VnPayGateway?orderCode={o.OrderCode}";
+                                    <a href="@payUrl" class="btn btn-sm btn-warning rounded-pill px-2 fw-semibold">
+                                        <i class="bi bi-qr-code-scan"></i> Xem QR
+                                    </a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script>
+        const revenueData = @Html.Raw(revenueSeriesJson);
+        const ctxRev = document.getElementById('revenueByMethodChart');
+        if (ctxRev) {
+            new Chart(ctxRev, {
+                type: 'bar',
+                data: {
+                    labels: ['VNPay / Chuyển khoản QR', 'Ví MoMo / VietQR', 'COD Nội thành TP.HCM'],
+                    datasets: [{
+                        label: 'Doanh thu đã thanh toán (VNĐ)',
+                        data: revenueData,
+                        backgroundColor: ['#005baa', '#a50064', '#16a34a'],
+                        borderRadius: 8,
+                        barThickness: 54
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return ctx.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN') + ' đ';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        const batchStatusData = @Html.Raw(batchStatusSeriesJson);
+        const ctxBatch = document.getElementById('batchStatusChart');
+        if (ctxBatch) {
+            new Chart(ctxBatch, {
+                type: 'doughnut',
+                data: {
+                    labels: [
+                        'Lô Hạn Dài Đạt Chuẩn',
+                        'Sắp Hết Hạn (< 15 ngày)',
+                        'Sắp Hết Tồn Kho',
+                        'Đã Quá Hạn'
+                    ],
+                    datasets: [{
+                        data: batchStatusData,
+                        backgroundColor: ['#16a34a', '#f59e0b', '#fb923c', '#dc2626']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+    </script>
+}

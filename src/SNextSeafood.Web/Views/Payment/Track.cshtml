@@ -1,0 +1,43 @@
+@{
+    ViewData["Title"] = "Tra Cứu Đơn Hàng & Hóa Đơn Điện Tử";
+    var orderCode = ViewData["OrderCode"] as string;
+    var customerPhone = ViewData["CustomerPhone"] as string;
+}
+
+<div class="row justify-content-center py-4">
+    <div class="col-md-7 col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="p-4 text-white text-center" style="background: linear-gradient(135deg, #071e3d 0%, #0b4f6c 100%);">
+                <div class="d-inline-flex align-items-center justify-content-center rounded-circle bg-info bg-opacity-25 text-info mb-2" style="width: 56px; height: 56px;">
+                    <i class="bi bi-receipt-cutoff fs-3"></i>
+                </div>
+                <h4 class="fw-bold mb-1">Tra Cứu Đơn Hàng Của Bạn</h4>
+                <p class="small text-white-50 mb-0">
+                    Xác thực bằng Mã đơn hàng và Số điện thoại đặt hàng để bảo mật thông tin cá nhân &amp; xem Hóa đơn điện tử.
+                </p>
+            </div>
+
+            <div class="card-body p-4">
+                <form asp-controller="Payment" asp-action="Track" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Mã đơn hàng *</label>
+                        <input type="text" name="orderCode" value="@orderCode" class="form-control form-control-lg"
+                               placeholder="VD: ORD-20261119-xxxx" required />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label small fw-semibold">Số điện thoại nhận hàng *</label>
+                        <input type="text" name="customerPhone" value="@customerPhone" class="form-control form-control-lg"
+                               placeholder="Nhập số điện thoại đã dùng khi đặt hàng" required />
+                    </div>
+
+                    <button type="submit" class="btn btn-coral btn-lg w-100 rounded-3">
+                        <i class="bi bi-search me-1"></i>Xác Thực &amp; Xem Hóa Đơn
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,91 @@
+# ==============================================================================
+# S-NEXT Seafood (.NET 8 / ASP.NET Core / EF Core / SQL Server) - .gitignore
+# ==============================================================================
+
+# Environment & Secrets (NEVER commit real secrets)
+.env
+.env.local
+.env.*.local
+*.secret.json
+appsettings.Local.json
+appsettings.Production.json
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sln.iml
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Test results & Coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+coverage*.json
+coverage*.xml
+coverage*.info
+*.trx
+*.coverage
+*.coveragexml
+
+# NuGet & Dotnet Tools
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# SQL Server / LocalDB files
+*.mdf
+*.ldf
+*.ndf
+*.bak
+
+# Uploaded temp test files / Exported reports
+*.xlsx
+*.csv
+wwwroot/uploads/temp/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.tmp
+*.swp
+*~
+
+# Internal agent prompt specification (optional - keep repo clean)
+AGENT_SPEC.md

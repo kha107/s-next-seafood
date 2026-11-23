@@ -1,0 +1,264 @@
+@model SNextSeafood.Web.Models.OrderInvoiceViewModel
+@using SNextSeafood.Domain.Enums
+@{
+    var isAdminView = (ViewData["IsAdminView"] as bool?) == true;
+    Layout = isAdminView ? "_AdminLayout" : "_Layout";
+    ViewData["Title"] = $"Hóa Đơn Điện Tử - {Model.Order.OrderCode}";
+    var latestTx = Model.Order.PaymentTransactions.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
+    var isPaid = Model.Order.PaymentStatus == PaymentStatus.Paid;
+    var isPending = Model.Order.OrderStatus == OrderStatus.PendingPayment;
+
+    string orderStatusVi = Model.Order.OrderStatus switch
+    {
+        OrderStatus.PendingPayment => "Chờ thanh toán",
+        OrderStatus.Processing => "Đang chuẩn bị hàng",
+        OrderStatus.Shipping => "Đang giao hàng lạnh",
+        OrderStatus.Completed => "Đã hoàn thành",
+        OrderStatus.Cancelled => "Đã hủy",
+        _ => "Đang xử lý"
+    };
+
+    string paymentStatusVi = Model.Order.PaymentStatus switch
+    {
+        PaymentStatus.Paid => "Đã thanh toán",
+        PaymentStatus.Failed => "Chưa hoàn tất",
+        PaymentStatus.Refunded => "Đã hoàn tiền",
+        _ => "Chưa thanh toán"
+    };
+
+    string paymentMethodVi = Model.Order.PaymentMethod switch
+    {
+        PaymentMethodType.VNPay => "Chuyển khoản Ngân hàng / VNPay QR",
+        PaymentMethodType.MoMo => "Ví Điện Tử MoMo / VietQR",
+        _ => "Thanh toán khi nhận hàng (COD)"
+    };
+
+    var cleanOrderTag = Model.Order.OrderCode.Replace("-", "").ToUpperInvariant();
+    var transferRef = Model.Order.PaymentMethod == PaymentMethodType.MoMo
+        ? $"SNEXT MOMO {cleanOrderTag}"
+        : $"SNEXT {cleanOrderTag}";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 p-3 rounded-4 bg-white shadow-sm border">
+    <div class="small fw-semibold text-secondary">
+        @if (isAdminView)
+        {
+            <a href="/Admin/Orders" class="btn btn-outline-secondary btn-sm rounded-pill me-2">
+                <i class="bi bi-arrow-left me-1"></i>Quay Lại Danh Sách Đơn Hàng
+            </a>
+            <span>Hóa đơn điện tử &amp; Chi tiết xuất xứ lô hàng</span>
+        }
+        else
+        {
+            <a href="/" class="btn btn-outline-secondary btn-sm rounded-pill me-2">
+                <i class="bi bi-house-door me-1"></i>Tiếp Tục Mua Sắm
+            </a>
+            <span>Hóa đơn điện tử chính thức từ Công ty TNHH S-NEXT</span>
+        }
+    </div>
+    <div class="d-flex gap-2">
+        @if (isPending)
+        {
+            var payUrl = Model.Order.PaymentMethod == PaymentMethodType.MoMo
+                ? $"/Payment/MoMoGateway?orderCode={Model.Order.OrderCode}&txnRef={Model.Order.OrderCode}-MOMO"
+                : $"/Payment/VnPayGateway?orderCode={Model.Order.OrderCode}";
+            <a href="@payUrl" class="btn btn-warning btn-sm fw-bold rounded-pill px-3">
+                <i class="bi bi-qr-code-scan me-1"></i>Mở Mã QR Thanh Toán
+            </a>
+        }
+        <button onclick="window.print()" class="btn btn-outline-dark btn-sm rounded-pill px-3">
+            <i class="bi bi-printer me-1"></i>In Hóa Đơn Điện Tử
+        </button>
+    </div>
+</div>
+
+@if (Model.CallbackResult is not null)
+{
+    <div class="alert @(Model.CallbackResult.Success ? "alert-success" : "alert-danger") border-0 shadow-sm rounded-4 p-4 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="fs-1">
+                <i class="bi @(Model.CallbackResult.Success ? "bi-patch-check-fill text-success" : "bi-x-octagon-fill text-danger")"></i>
+            </div>
+            <div>
+                <h5 class="fw-bold mb-1">
+                    @(Model.CallbackResult.Success ? "Thanh Toán Thành Công!" : "Đơn Hàng Đã Được Hủy Thanh Toán")
+                </h5>
+                <p class="mb-0">@Model.CallbackResult.Message</p>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- E-Invoice & Food Traceability Certificate -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="p-4 text-white" style="background: linear-gradient(135deg, #071e3d 0%, #0b4f6c 100%);">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <div class="small text-info fw-semibold text-uppercase">Hóa Đơn Điện Tử &amp; Chứng Nhận Xuất Xứ Lô Hàng</div>
+                <h3 class="fw-bold mb-1">CÔNG TY TNHH S-NEXT (S-NEXT SEAFOOD)</h3>
+                <div class="small text-white-50">
+                    Mã số thuế: <strong class="text-warning">0313778856</strong> | Địa chỉ: 266/78/47 Tô Hiến Thành, Phường Hòa Hưng, TP. Hồ Chí Minh
+                </div>
+            </div>
+            <div class="col-md-5 text-md-end mt-3 mt-md-0">
+                <div class="fs-5 fw-bold text-warning">Mã đơn: @Model.Order.OrderCode</div>
+                <div class="small text-white-50">Ngày đặt: @Model.Order.CreatedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="mt-2">
+                    <span class="badge @(isPaid ? "bg-success" : Model.Order.OrderStatus == OrderStatus.Cancelled ? "bg-danger" : "bg-warning text-dark") fs-6 px-3 py-2">
+                        @paymentStatusVi &bull; @orderStatusVi
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-body p-4">
+        <!-- Customer & Payment Metadata -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="p-3 rounded-4 bg-light border h-100">
+                    <h6 class="fw-bold text-uppercase small text-secondary mb-2">
+                        <i class="bi bi-person-vcard text-primary me-1"></i>Thông Tin Khách Hàng &amp; Giao Nhận Lạnh
+                    </h6>
+                    <div class="mb-1"><strong>Khách hàng:</strong> @Model.Order.CustomerName (@Model.Order.CustomerPhone)</div>
+                    <div class="mb-1"><strong>Email:</strong> @Model.Order.CustomerEmail</div>
+                    <div class="mb-1"><strong>Địa chỉ giao hàng:</strong> @Model.Order.ShippingAddress</div>
+                    <div class="small text-muted"><strong>Ghi chú:</strong> @(Model.Order.DeliveryNote ?? "Bảo quản thùng lạnh tiêu chuẩn -18°C")</div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="p-3 rounded-4 bg-light border h-100">
+                    <h6 class="fw-bold text-uppercase small text-secondary mb-2">
+                        <i class="bi bi-credit-card-2-back text-success me-1"></i>Thông Tin Thanh Toán Đơn Hàng
+                    </h6>
+                    <div class="row small g-2">
+                        <div class="col-12"><strong>Phương thức:</strong> <span class="badge bg-primary">@paymentMethodVi</span></div>
+                        <div class="col-6"><strong>Nội dung đối soát:</strong> <strong class="text-dark">@transferRef</strong></div>
+                        <div class="col-6">
+                            <strong>Mã giao dịch:</strong>
+                            <strong class="text-danger">@(string.IsNullOrWhiteSpace(latestTx?.GatewayTransactionNo) || latestTx.GatewayTransactionNo == "0" ? "Chưa phát sinh" : latestTx.GatewayTransactionNo)</strong>
+                        </div>
+                        <div class="col-6">
+                            <strong>Trạng thái:</strong>
+                            @if (isPaid)
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Đã xác nhận thanh toán</span>
+                            }
+                            else if (Model.Order.OrderStatus == OrderStatus.Cancelled)
+                            {
+                                <span class="badge bg-danger">Đã hủy thanh toán</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">Đang chờ thanh toán</span>
+                            }
+                        </div>
+                        <div class="col-6">
+                            <strong>Thời gian xác nhận:</strong>
+                            @(latestTx?.PaidAt.HasValue == true ? latestTx.PaidAt.Value.AddHours(7).ToString("dd/MM/yyyy HH:mm") : "Chưa hoàn tất")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product & Food Traceability Table -->
+        <h6 class="fw-bold mb-2">
+            <i class="bi bi-patch-check-fill text-primary me-1"></i>Chi Tiết Sản Phẩm &amp; Thông Tin Xuất Xứ Lô Hàng
+        </h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle">
+                <thead class="table-wms">
+                    <tr>
+                        <th>#</th>
+                        <th>Sản Phẩm &amp; Quy Cách</th>
+                        <th class="text-center">Số Lượng</th>
+                        <th class="text-end">Đơn Giá</th>
+                        <th>Thông Tin Lô Hàng &amp; Hạn Sử Dụng</th>
+                        <th class="text-end">Thành Tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        var idx = 1;
+                        foreach (var item in Model.Order.OrderItems)
+                        {
+                            <tr>
+                                <td class="fw-bold">@(idx++)</td>
+                                <td>
+                                    <div class="fw-bold">@item.ProductVariant?.Product?.Name</div>
+                                    <div class="small text-muted">
+                                        Quy cách: <strong>@item.ProductVariant?.PackagingSpec</strong> | Mã SP: @item.ProductVariant?.Sku
+                                    </div>
+                                    <span class="badge bg-info bg-opacity-10 text-dark border mt-1">
+                                        @item.ProductVariant?.Product?.StorageCondition
+                                    </span>
+                                </td>
+                                <td class="text-center fw-bold fs-6">@item.Quantity</td>
+                                <td class="text-end">@item.UnitPrice.ToString("N0") đ</td>
+                                <td>
+                                    @foreach (var alloc in item.BatchAllocations)
+                                    {
+                                        <div class="p-2 rounded-3 bg-light border mb-1 small">
+                                            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                                                <span>
+                                                    <i class="bi bi-box-seam-fill text-primary me-1"></i>
+                                                    Mã lô: <strong class="text-primary">@alloc.BatchCode</strong>
+                                                    &mdash; <strong>@alloc.AllocatedQuantity gói</strong>
+                                                </span>
+                                                @if (alloc.IsExportConfirmed)
+                                                {
+                                                    <span class="badge bg-success"><i class="bi bi-check2-all me-1"></i>Đã Xuất Kho</span>
+                                                }
+                                                else if (alloc.IsReservationReleased)
+                                                {
+                                                    <span class="badge bg-secondary">Đã Hoàn Trả Kho</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">Đang Giữ Hàng</span>
+                                                }
+                                            </div>
+                                            <div class="text-muted mt-1" style="font-size: 0.78rem;">
+                                                Ngày SX: <strong>@alloc.ManufactureDate.ToString("dd/MM/yyyy")</strong> |
+                                                Hạn SD: <strong class="text-danger">@alloc.ExpiryDate.ToString("dd/MM/yyyy")</strong> |
+                                                Nguồn gốc: <strong>@(alloc.Batch?.Supplier?.Name ?? "Kho Lạnh S-NEXT")</strong>
+                                            </div>
+                                        </div>
+                                    }
+                                </td>
+                                <td class="text-end fw-bold text-danger">@item.LineTotal.ToString("N0") đ</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Totals Footer -->
+        <div class="row justify-content-end">
+            <div class="col-md-5">
+                <div class="p-3 rounded-4 bg-light border">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Tổng tiền hàng:</span>
+                        <span class="fw-semibold">@Model.Order.TotalAmount.ToString("N0") đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Ưu đãi mã giảm giá @(Model.Order.AppliedVoucherCode != null ? $"({Model.Order.AppliedVoucherCode})" : ""):</span>
+                        <span class="fw-semibold text-success">-@Model.Order.DiscountAmount.ToString("N0") đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Phí giao hàng lạnh:</span>
+                        <span class="fw-semibold">@Model.Order.ShippingFee.ToString("N0") đ</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold fs-5">Tổng cộng thanh toán:</span>
+                        <span class="fw-bold fs-4 text-danger">@Model.Order.FinalAmount.ToString("N0") đ</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

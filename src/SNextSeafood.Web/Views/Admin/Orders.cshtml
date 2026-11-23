@@ -1,0 +1,135 @@
+@model SNextSeafood.Web.Models.AdminOrdersViewModel
+@using SNextSeafood.Domain.Enums
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản Lý Đơn Hàng, Hóa Đơn Điện Tử & Xuất Xứ Lô Hàng";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="badge bg-primary mb-1"><i class="bi bi-receipt-cutoff me-1"></i>QUẢN LÝ ĐƠN HÀNG &amp; HÓA ĐƠN ĐIỆN TỬ</span>
+        <h3 class="fw-bold mb-0">Quản Lý Đơn Hàng, Hóa Đơn &amp; Truy Xuất Nguồn Gốc Lô</h3>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/Admin/Dashboard/ExportRevenueExcel" class="btn btn-success rounded-pill px-3">
+            <i class="bi bi-file-earmark-excel me-1"></i>Xuất Báo Cáo Doanh Thu (.xlsx)
+        </a>
+        <a href="/Admin/Dashboard" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-bar-chart-line me-1"></i>Về Tổng Quan
+        </a>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+    <div class="d-flex flex-wrap gap-2">
+        <a href="/Admin/Orders?status=all" class="btn @(Model.StatusFilter == "all" ? "btn-ocean" : "btn-outline-secondary") rounded-pill btn-sm px-3">
+            Tất Cả Đơn Hàng (@Model.Summary.TotalOrdersCount)
+        </a>
+        <a href="/Admin/Orders?status=pending" class="btn @(Model.StatusFilter == "pending" ? "btn-warning fw-bold text-dark" : "btn-outline-warning text-dark") rounded-pill btn-sm px-3">
+            Chờ Thanh Toán (@Model.Summary.PendingPaymentOrdersCount)
+        </a>
+        <a href="/Admin/Orders?status=paid" class="btn @(Model.StatusFilter == "paid" ? "btn-success" : "btn-outline-success") rounded-pill btn-sm px-3">
+            Đã Thanh Toán
+        </a>
+        <a href="/Admin/Orders?status=cancelled" class="btn @(Model.StatusFilter == "cancelled" ? "btn-danger" : "btn-outline-danger") rounded-pill btn-sm px-3">
+            Đã Hủy
+        </a>
+    </div>
+</div>
+
+<!-- Orders Table -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle small mb-0">
+            <thead class="table-wms">
+                <tr>
+                    <th>Mã Đơn Hàng</th>
+                    <th>Khách Hàng &amp; SĐT</th>
+                    <th>Phương Thức</th>
+                    <th>Chi Tiết Lô Hàng Xuất Kho</th>
+                    <th class="text-end">Tổng Tiền</th>
+                    <th class="text-center">Thanh Toán</th>
+                    <th class="text-center">Trạng Thái</th>
+                    <th class="text-center">Thao Tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var o in Model.Orders)
+                {
+                    var methodVi = o.PaymentMethod == PaymentMethodType.VNPay ? "VNPay / QR"
+                                 : o.PaymentMethod == PaymentMethodType.MoMo ? "Ví MoMo" : "COD";
+                    var orderStatusVi = o.OrderStatus switch
+                    {
+                        OrderStatus.PendingPayment => "Chờ thanh toán",
+                        OrderStatus.Processing => "Đang chuẩn bị",
+                        OrderStatus.Shipping => "Đang giao hàng",
+                        OrderStatus.Completed => "Hoàn thành",
+                        OrderStatus.Cancelled => "Đã hủy",
+                        _ => "Đang xử lý"
+                    };
+
+                    <tr>
+                        <td>
+                            <a href="/Admin/Orders/Invoice/@o.OrderCode" class="fw-bold text-primary text-decoration-none">
+                                @o.OrderCode
+                            </a>
+                            <div class="text-muted" style="font-size: 0.72rem;">@o.CreatedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm")</div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">@o.CustomerName</div>
+                            <div class="text-muted">@o.CustomerPhone &bull; @o.District</div>
+                        </td>
+                        <td>
+                            <span class="badge @(o.PaymentMethod == PaymentMethodType.VNPay ? "bg-primary" : o.PaymentMethod == PaymentMethodType.MoMo ? "bg-danger" : "bg-success")">
+                                @methodVi
+                            </span>
+                        </td>
+                        <td>
+                            @foreach (var alloc in o.OrderItems.SelectMany(i => i.BatchAllocations))
+                            {
+                                <span class="badge bg-light text-dark border me-1 mb-1">
+                                    <strong>@alloc.BatchCode</strong> (@alloc.AllocatedQuantity gói &bull; HSD: @alloc.ExpiryDate.ToString("dd/MM/yyyy"))
+                                </span>
+                            }
+                        </td>
+                        <td class="text-end fw-bold text-danger">@o.FinalAmount.ToString("N0") đ</td>
+                        <td class="text-center">
+                            @switch (o.PaymentStatus)
+                            {
+                                case PaymentStatus.Paid:
+                                    <span class="badge bg-success">Đã thanh toán</span>
+                                    break;
+                                case PaymentStatus.Failed:
+                                    <span class="badge bg-danger">Chưa hoàn tất</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-warning text-dark">Chờ thanh toán</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-dark">@orderStatusVi</span>
+                        </td>
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-1">
+                                <a href="/Admin/Orders/Invoice/@o.OrderCode" class="btn btn-sm btn-outline-primary rounded-pill px-2">
+                                    <i class="bi bi-file-earmark-text me-1"></i>Hóa Đơn
+                                </a>
+                                @if (o.OrderStatus == OrderStatus.PendingPayment)
+                                {
+                                    var payUrl = o.PaymentMethod == PaymentMethodType.MoMo
+                                        ? $"/Payment/MoMoGateway?orderCode={o.OrderCode}&txnRef={o.OrderCode}-MOMO"
+                                        : $"/Payment/VnPayGateway?orderCode={o.OrderCode}";
+                                    <a href="@payUrl" class="btn btn-sm btn-warning rounded-pill px-2 fw-semibold">
+                                        <i class="bi bi-qr-code-scan me-1"></i>Xem QR
+                                    </a>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

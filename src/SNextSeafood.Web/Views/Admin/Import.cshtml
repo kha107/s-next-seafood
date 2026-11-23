@@ -1,0 +1,300 @@
+@model SNextSeafood.Web.Models.AdminImportAndTransactionsViewModel
+@using SNextSeafood.Domain.Enums
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Lập Phiếu Nhập Kho, Cập Nhật Ảnh Sản Phẩm & Lịch Sử Xuất Nhập";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="badge bg-success mb-1"><i class="bi bi-journal-plus me-1"></i>QUẢN LÝ PHIẾU NHẬP KHO &amp; HÌNH ẢNH SẢN PHẨM</span>
+        <h3 class="fw-bold mb-0">Lập Phiếu Nhập Lô Mới, Cập Nhật Ảnh Sản Phẩm &amp; Sổ Kho</h3>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/Admin/Warehouse" class="btn btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-boxes me-1"></i>Quay Lại Danh Sách Lô Hàng
+        </a>
+        <a href="/Admin/Dashboard" class="btn btn-ocean rounded-pill px-3">
+            <i class="bi bi-bar-chart-line me-1"></i>Tổng Quan &amp; Báo Cáo
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Left Column: Form Lập Phiếu Nhập Kho Lô Mới + Đính Kèm Ảnh Minh Họa Sản Phẩm -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+            <h5 class="fw-bold mb-1">
+                <i class="bi bi-box-arrow-in-down text-primary me-2"></i>Lập Phiếu Nhập Kho Lô Mới / Nhập Thêm
+            </h5>
+            <p class="small text-muted mb-3">
+                Ghi nhận lô hàng mới từ Nhà cung cấp vào kho lạnh S-NEXT, đồng thời cho phép tải lên hoặc cập nhật hình ảnh minh họa sản phẩm trực tiếp.
+            </p>
+
+            <form asp-action="Import" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Chọn Nhà cung cấp thủy hải sản *</label>
+                    <select name="SupplierId" class="form-select" required>
+                        @foreach (var s in Model.Suppliers)
+                        {
+                            <option value="@s.SupplierId">[@s.SupplierCode] @s.Name (@s.ColdStorageStandard)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Chọn Sản phẩm &amp; Quy cách đóng gói *</label>
+                    <select id="variantSelect" name="ProductVariantId" class="form-select" required>
+                        @foreach (var p in Model.Products)
+                        {
+                            foreach (var v in p.Variants.OrderBy(x => x.WeightGrams))
+                            {
+                                var isSelected = Model.SelectedVariantId == v.VariantId;
+                                <option value="@v.VariantId"
+                                        data-img="@p.ImageUrl"
+                                        data-product-name="@p.Name"
+                                        selected="@(isSelected ? "selected" : null)">
+                                    [@v.Sku] @p.Name - @v.PackagingSpec (Giá bán: @v.Price.ToString("N0")đ)
+                                </option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <!-- Product Image Preview + Upload / URL Update Attached to Import Batch -->
+                <div class="p-3 rounded-4 bg-light border mb-3">
+                    <div class="d-flex align-items-center gap-3 mb-2">
+                        <img id="currentProductImgPreview" src="/images/products/salmon-fillet.jpg" alt="Ảnh minh họa sản phẩm"
+                             class="rounded-3 border object-fit-cover bg-white" style="width: 78px; height: 78px;" />
+                        <div>
+                            <div class="fw-bold small text-primary">
+                                <i class="bi bi-image me-1"></i>Hình Ảnh Minh Họa Sản Phẩm (Tùy chọn cập nhật)
+                            </div>
+                            <div id="selectedProductLabel" class="small fw-semibold text-dark">Đang chọn sản phẩm...</div>
+                            <div class="text-muted" style="font-size: 0.74rem;">
+                                Để trống nếu muốn giữ nguyên ảnh hiện tại. Hỗ trợ tải tệp .jpg, .png, .webp (tối đa 5MB) hoặc nhập đường dẫn ảnh.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold mb-1">Tải ảnh minh họa mới từ máy tính:</label>
+                        <input type="file" id="productImageFileInput" name="productImageFile" accept=".jpg,.jpeg,.png,.webp" class="form-control form-control-sm" />
+                    </div>
+                    <div>
+                        <label class="form-label small fw-semibold mb-1">Hoặc nhập đường dẫn hình ảnh mới:</label>
+                        <input type="text" name="productImageUrl" class="form-control form-control-sm" placeholder="VD: /images/products/... hoặc https://..." />
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Mã Lô Hàng *</label>
+                        <input type="text" name="CustomBatchCode" value="@Model.ImportForm.CustomBatchCode" class="form-control fw-bold text-primary" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Vị trí Kệ Kho Lạnh</label>
+                        <input type="text" name="StorageRack" value="@Model.ImportForm.StorageRack" class="form-control" required />
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Ngày sản xuất / cấp đông (NSX) *</label>
+                        <input type="date" name="ManufactureDate" value="@Model.ImportForm.ManufactureDate.ToString("yyyy-MM-dd")" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Hạn sử dụng (HSD) *</label>
+                        <input type="date" name="ExpiryDate" value="@Model.ImportForm.ExpiryDate.ToString("yyyy-MM-dd")" class="form-control" required />
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Số lượng nhập ban đầu *</label>
+                        <input type="number" name="InitialQuantity" value="@Model.ImportForm.InitialQuantity" min="1" max="5000" class="form-control fw-bold" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Đơn giá vốn nhập (VNĐ) *</label>
+                        <input type="number" name="ImportUnitPrice" value="@Model.ImportForm.ImportUnitPrice" min="1000" step="1000" class="form-control fw-bold" required />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Người lập phiếu</label>
+                    <input type="text" name="PerformedBy" value="@Model.ImportForm.PerformedBy" class="form-control" required />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Ghi chú kiểm định nhiệt độ &amp; chứng từ</label>
+                    <textarea name="Note" rows="2" class="form-control">@Model.ImportForm.Note</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-coral btn-lg w-100">
+                    <i class="bi bi-check2-circle me-1"></i>Xác Nhận Nhập Kho Lô Hàng Mới
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Column: Lịch Sử Xuất Nhập Kho -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="fw-bold mb-0">
+                        <i class="bi bi-clock-history text-primary me-2"></i>Lịch Sử Biến Động Kho Hàng
+                    </h5>
+                    <span class="small text-muted">Theo dõi đầy đủ các phiếu Nhập kho, Giữ hàng chờ thanh toán, Xuất bán, Hoàn trả giữ hàng và Xuất hủy</span>
+                </div>
+                <span class="badge bg-dark">@Model.Transactions.Count bản ghi</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle small mb-0">
+                    <thead class="table-wms">
+                        <tr>
+                            <th>Mã Phiếu</th>
+                            <th>Loại Giao Dịch</th>
+                            <th>Lô Hàng &amp; Sản Phẩm</th>
+                            <th class="text-center">SL Biến Động</th>
+                            <th class="text-center">Tồn / Giữ Sau GD</th>
+                            <th>Thời Gian &amp; Diễn Giải</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var tx in Model.Transactions)
+                        {
+                            var isPositive = tx.QuantityChanged > 0 && tx.TransactionType != InventoryTransactionType.Reservation;
+                            <tr>
+                                <td>
+                                    <strong class="text-dark">@tx.ReceiptCode</strong>
+                                    @if (tx.Order is not null)
+                                    {
+                                        <div>
+                                            <a href="/Admin/Orders/Invoice/@tx.Order.OrderCode" class="badge bg-light text-primary border text-decoration-none">
+                                                @tx.Order.OrderCode
+                                            </a>
+                                        </div>
+                                    }
+                                </td>
+                                <td>
+                                    @switch (tx.TransactionType)
+                                    {
+                                        case InventoryTransactionType.Import:
+                                            <span class="badge bg-success"><i class="bi bi-box-arrow-in-down me-1"></i>Nhập kho mới</span>
+                                            break;
+                                        case InventoryTransactionType.SaleExport:
+                                            <span class="badge bg-primary"><i class="bi bi-cart-check me-1"></i>Xuất bán hàng</span>
+                                            break;
+                                        case InventoryTransactionType.Reservation:
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-lock-fill me-1"></i>Giữ hàng chờ thanh toán</span>
+                                            break;
+                                        case InventoryTransactionType.ReleaseReservation:
+                                            <span class="badge bg-info text-dark"><i class="bi bi-unlock-fill me-1"></i>Hoàn trả giữ hàng</span>
+                                            break;
+                                        case InventoryTransactionType.SpoilageDiscard:
+                                            <span class="badge bg-danger"><i class="bi bi-trash3 me-1"></i>Xuất hủy hàng hỏng</span>
+                                            break;
+                                    }
+                                </td>
+                                <td>
+                                    <strong class="text-primary">@tx.Batch?.BatchCode</strong>
+                                    <div class="fw-semibold">@tx.Batch?.ProductVariant?.Product?.Name</div>
+                                    <span class="text-muted">@tx.Batch?.ProductVariant?.PackagingSpec</span>
+                                </td>
+                                <td class="text-center fw-bold fs-6 @(tx.TransactionType == InventoryTransactionType.Reservation ? "text-warning-emphasis" : isPositive ? "text-success" : "text-danger")">
+                                    @(tx.QuantityChanged > 0 ? $"+{tx.QuantityChanged}" : tx.QuantityChanged.ToString())
+                                </td>
+                                <td class="text-center">
+                                    <div>Tồn: <strong>@tx.RemainingQuantityAfter</strong></div>
+                                    <div class="text-muted">Giữ: <strong>@tx.ReservedQuantityAfter</strong></div>
+                                </td>
+                                <td>
+                                    <div class="text-dark">@tx.Note</div>
+                                    <div class="text-muted" style="font-size: 0.73rem;">
+                                        <i class="bi bi-person me-1"></i>@tx.PerformedBy &bull; @tx.CreatedAt.AddHours(7).ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Product Image Gallery Manager -->
+<div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+    <div class="mb-3">
+        <h5 class="fw-bold mb-0">
+            <i class="bi bi-images text-primary me-2"></i>Quản Lý Nhanh Hình Ảnh Minh Họa Sản Phẩm
+        </h5>
+        <span class="small text-muted">Cập nhật trực tiếp hình ảnh minh họa cho từng sản phẩm mà không cần tạo phiếu nhập kho mới</span>
+    </div>
+    <div class="row g-3">
+        @foreach (var prod in Model.Products)
+        {
+            <div class="col-md-6 col-lg-3">
+                <div class="border rounded-4 p-3 h-100 d-flex flex-column bg-light">
+                    <div class="rounded-3 overflow-hidden border mb-2 bg-white" style="height: 140px;">
+                        <img src="@prod.ImageUrl" alt="@prod.Name" class="w-100 h-100 object-fit-cover" />
+                    </div>
+                    <div class="fw-bold small mb-2">@prod.Name</div>
+                    <form action="/Admin/Products/UpdateImage" method="post" enctype="multipart/form-data" class="mt-auto">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="productId" value="@prod.ProductId" />
+                        <input type="file" name="productImageFile" accept=".jpg,.jpeg,.png,.webp" class="form-control form-control-sm mb-2" />
+                        <button type="submit" class="btn btn-sm btn-outline-primary w-100 rounded-pill">
+                            <i class="bi bi-upload me-1"></i>Cập Nhật Ảnh Này
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const selectEl = document.getElementById('variantSelect');
+            const previewImg = document.getElementById('currentProductImgPreview');
+            const labelEl = document.getElementById('selectedProductLabel');
+            const fileInput = document.getElementById('productImageFileInput');
+
+            function syncSelectedProductPreview() {
+                if (!selectEl) return;
+                const opt = selectEl.options[selectEl.selectedIndex];
+                if (!opt) return;
+                const imgUrl = opt.getAttribute('data-img');
+                const prodName = opt.getAttribute('data-product-name');
+                if (imgUrl && (!fileInput || !fileInput.files || fileInput.files.length === 0)) {
+                    previewImg.src = imgUrl;
+                }
+                if (prodName) {
+                    labelEl.textContent = prodName;
+                }
+            }
+
+            if (selectEl) {
+                selectEl.addEventListener('change', syncSelectedProductPreview);
+                syncSelectedProductPreview();
+            }
+
+            if (fileInput) {
+                fileInput.addEventListener('change', function (e) {
+                    const file = e.target.files && e.target.files[0];
+                    if (file) {
+                        previewImg.src = URL.createObjectURL(file);
+                    } else {
+                        syncSelectedProductPreview();
+                    }
+                });
+            }
+        })();
+    </script>
+}
